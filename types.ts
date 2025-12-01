@@ -36,6 +36,7 @@ export interface LaunchDetails {
 export interface MonthData {
   id: string;
   name: string;
+  headerLogo?: string; // New field for the logo next to month name
   quarter: Quarter;
   year: number;
   productLaunch: LaunchDetails;

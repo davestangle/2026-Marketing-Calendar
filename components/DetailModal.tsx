@@ -1,8 +1,6 @@
-
 import React, { useRef, useState, useEffect } from 'react';
 import { MonthData, Comment } from '../types';
-import { X, Upload, Plus, Trash2, Target, Banknote, Link as LinkIcon, ExternalLink, Edit2, Save, MessageSquare, Send, CheckCircle2, Reply, ChevronDown, Check, LogIn } from 'lucide-react';
-import { User } from 'firebase/auth';
+import { X, Upload, Plus, Trash2, Target, Banknote, Link as LinkIcon, ExternalLink, Edit2, Save, MessageSquare, Send, CheckCircle2, Reply, ChevronDown, Loader2, Link2 } from 'lucide-react';
 
 interface DetailModalProps {
   month: MonthData;
@@ -10,47 +8,10 @@ interface DetailModalProps {
   onClose: () => void;
   globalIsEditing: boolean;
   onUpdate: (updatedMonth: MonthData) => void;
-  currentUser: User | null;
-  onSignIn: () => void;
+  userName: string;
+  setUserName: (name: string) => void;
+  onProcessMedia: (file: File) => Promise<string>;
 }
-
-// Helper to compress images (duplicated here for component portability)
-const resizeImage = (file: File, maxWidth = 1200): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxWidth) {
-            height *= maxWidth / width;
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxWidth) {
-            width *= maxWidth / height;
-            height = maxWidth;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-        // Compress to JPEG at 80% quality
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
-      };
-    };
-    reader.onerror = (error) => reject(error);
-  });
-};
-
 
 export const DetailModal: React.FC<DetailModalProps> = ({ 
   month, 
@@ -58,8 +19,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   onClose, 
   globalIsEditing, 
   onUpdate,
-  currentUser,
-  onSignIn
+  userName,
+  setUserName,
+  onProcessMedia
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +34,15 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [showResolved, setShowResolved] = useState(false);
+  const [tempName, setTempName] = useState("");
+  
+  // Processing States
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("Processing Media...");
+  
+  // Link Input State
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [linkInputValue, setLinkInputValue] = useState("");
 
   useEffect(() => {
     setIsLocalEditing(globalIsEditing);
@@ -86,32 +57,84 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   if (!isOpen || !month) return null;
 
   // --- Image & Data Handlers ---
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ''; // Reset input
+    
     if (file) {
+      setIsProcessing(true);
+      setStatusMessage("Uploading... (Large files may take 10-20s)");
       try {
-        const base64 = await resizeImage(file, 1200);
+        const result = await onProcessMedia(file);
         onUpdate({
           ...month,
-          productLaunch: { ...month.productLaunch, image: base64 }
+          productLaunch: { ...month.productLaunch, image: result }
         });
-      } catch (err) {
-        alert("Failed to process image. Try a different file.");
+      } catch (err: any) {
+        alert(err.message || "Failed to process file.");
+      } finally {
+        setIsProcessing(false);
+        setStatusMessage("Processing Media...");
       }
     }
   };
 
+  const openLinkInput = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLinkInputValue("");
+    setShowLinkInput(true);
+  };
+
+  const submitLinkInput = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
+    let url = linkInputValue.trim();
+    if (url) {
+      // Smart Google Drive Conversion
+      if (url.includes('drive.google.com') && url.includes('/file/d/')) {
+         const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+         if (match && match[1]) {
+            url = `https://drive.google.com/uc?export=view&id=${match[1]}`;
+         }
+      }
+      
+      onUpdate({
+        ...month,
+        productLaunch: { ...month.productLaunch, image: url }
+      });
+    }
+    setShowLinkInput(false);
+  };
+
+  const handleRemoveMedia = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onUpdate({
+      ...month,
+      productLaunch: { ...month.productLaunch, image: '' }
+    });
+  };
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
+
     if (file) {
+      setIsProcessing(true);
+      setStatusMessage("Processing Logo...");
       try {
-        const base64 = await resizeImage(file, 600); // Smaller max width for logos
+        const result = await onProcessMedia(file);
         onUpdate({
           ...month,
-          productLaunch: { ...month.productLaunch, logo: base64 }
+          productLaunch: { ...month.productLaunch, logo: result }
         });
-      } catch (err) {
-        alert("Failed to process logo.");
+      } catch (err: any) {
+        alert(err.message || "Failed to process logo.");
+      } finally {
+        setIsProcessing(false);
+        setStatusMessage("Processing Media...");
       }
     }
   };
@@ -180,13 +203,19 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   };
 
   // --- Comment System Handlers ---
+  const saveName = () => {
+    if(tempName.trim()) {
+      setUserName(tempName.trim());
+    }
+  };
+
   const addTopLevelComment = () => {
-    if (!newComment.trim() || !currentUser) return;
+    if (!newComment.trim() || !userName) return;
     const comment: Comment = {
       id: Date.now().toString(),
       text: newComment,
       timestamp: new Date().toISOString(),
-      author: currentUser.displayName || 'Anonymous',
+      author: userName,
       resolved: false,
       replies: []
     };
@@ -195,12 +224,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   };
 
   const addReply = (parentId: string) => {
-    if (!replyText.trim() || !currentUser) return;
+    if (!replyText.trim() || !userName) return;
     const reply: Comment = {
       id: Date.now().toString(),
       text: replyText,
       timestamp: new Date().toISOString(),
-      author: currentUser.displayName || 'Anonymous',
+      author: userName,
       resolved: false,
       replies: []
     };
@@ -217,7 +246,6 @@ export const DetailModal: React.FC<DetailModalProps> = ({
 
   const deleteComment = (commentId: string, parentId?: string) => {
     if (parentId) {
-      // Delete reply
       onUpdate({
         ...month,
         comments: month.comments?.map(c => 
@@ -225,7 +253,6 @@ export const DetailModal: React.FC<DetailModalProps> = ({
         )
       });
     } else {
-      // Delete top level
       onUpdate({
         ...month,
         comments: month.comments?.filter(c => c.id !== commentId)
@@ -252,39 +279,99 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   const resolvedComments = safeComments.filter(c => c.resolved);
   const commentsToDisplay = showResolved ? [...activeComments, ...resolvedComments] : activeComments;
   
-  // Sort by time
   commentsToDisplay.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  // Render Logic for Media (Video vs Image vs Drive vs YouTube)
+  const renderMedia = () => {
+    const src = month.productLaunch.image;
+    if (!src) return null;
+
+    // 1. Google Drive Embed
+    if (src.includes('drive.google.com') && src.includes('/preview')) {
+      return (
+        <iframe key={src} src={src} className="w-full h-full border-0 bg-black" allow="autoplay" />
+      );
+    }
+
+    // 2. YouTube Embed
+    if (src.includes('youtube.com') || src.includes('youtu.be')) {
+      let embedSrc = src;
+      if (src.includes('watch?v=')) embedSrc = src.replace('watch?v=', 'embed/');
+      else if (src.includes('youtu.be/')) embedSrc = src.replace('youtu.be/', 'youtube.com/embed/');
+      
+      return (
+         <iframe key={src} src={embedSrc} className="w-full h-full border-0 bg-black" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+      );
+    }
+
+    // 3. Video File (Robust Check for Cloudinary/Firebase)
+    // Matches .mp4, .webm anywhere in url (e.g. /upload/v123/myvideo.mp4)
+    // Or data:video
+    const isVideo = src.startsWith('data:video') || /\.(mp4|webm|mov|m4v)($|\?)/i.test(src) || src.includes('/video/upload/');
+
+    if (isVideo) {
+      return (
+        <video 
+          key={src} 
+          src={src} 
+          controls 
+          autoPlay 
+          loop 
+          muted 
+          playsInline 
+          className="w-full h-full object-contain max-h-[600px] animate-in fade-in" 
+        />
+      );
+    }
+    
+    // 4. Image/GIF Fallback
+    return (
+      <img 
+        key={src}
+        src={src} 
+        alt="Launch Visual" 
+        className="w-full h-full object-contain max-h-[600px] animate-in fade-in"
+        onError={(e) => {
+           e.currentTarget.style.display = 'none';
+           e.currentTarget.parentElement?.classList.add('bg-red-50');
+           e.currentTarget.parentElement!.innerHTML = `<div class="absolute inset-0 flex flex-col items-center justify-center text-red-400 p-4 text-center"><p class="font-bold">Unable to Load Media</p><p class="text-xs">Link blocked or broken.</p></div>`;
+        }}
+      />
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 font-sans">
       <div 
-        className="absolute inset-0 bg-brand-navy/80 backdrop-blur-sm transition-opacity" 
-        onClick={onClose}
+        className="absolute inset-0 bg-brand-navy/60 backdrop-blur-md transition-opacity duration-300" 
+        onClick={!isProcessing && !showLinkInput ? onClose : undefined}
       />
       
       <div className={`
-        relative bg-white w-full max-w-6xl max-h-[95vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 transition-all
+        relative bg-white w-full max-w-6xl max-h-[95vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden 
+        transition-all duration-300 ease-out
         ${showComments ? 'pr-[350px]' : ''} 
       `}>
         
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white z-10 shrink-0">
           <div>
-            <h2 className="text-3xl font-bold text-brand-navy">{month.name} {month.year}</h2>
-            <p className="text-gray-400 font-medium text-sm mt-1">{month.quarter}</p>
+            <h2 className="text-3xl font-bold text-brand-navy tracking-tight">{month.name} {month.year}</h2>
+            <p className="text-gray-400 font-medium text-sm mt-1 uppercase tracking-widest">{month.quarter}</p>
           </div>
           
           <div className="flex items-center gap-3">
              <button
+               disabled={isProcessing}
                onClick={() => setIsLocalEditing(!isLocalEditing)}
                className={`
-                 flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm transition-all
+                 flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm transition-all disabled:opacity-50
                  ${isLocalEditing 
-                   ? 'bg-brand-cyan text-white shadow-md' 
+                   ? 'bg-brand-cyan text-white shadow-md ring-2 ring-brand-cyan/20' 
                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}
                `}
              >
-               {isLocalEditing ? <><Save size={16} /> Saving Edits...</> : <><Edit2 size={16} /> Edit Page</>}
+               {isLocalEditing ? <><Save size={16} /> Save Edits</> : <><Edit2 size={16} /> Edit Page</>}
              </button>
 
              <button
@@ -297,7 +384,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
              >
                <MessageSquare size={24} />
                {activeComments.length > 0 && (
-                 <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white">
+                 <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
                    {activeComments.length}
                  </span>
                )}
@@ -306,8 +393,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({
              <div className="w-px h-8 bg-gray-200 mx-1"></div>
 
              <button 
+               disabled={isProcessing}
                onClick={onClose}
-               className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-brand-navy"
+               className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors text-gray-400 disabled:opacity-50"
              >
                <X size={32} />
              </button>
@@ -317,49 +405,125 @@ export const DetailModal: React.FC<DetailModalProps> = ({
         <div className="p-8 overflow-y-auto flex-1">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
             
-            {/* Visuals */}
+            {/* Visuals - Standard Layout */}
             <div className="space-y-4">
               <div 
                 className={`
                   relative min-h-[400px] bg-gray-50 rounded-xl overflow-hidden shadow-inner border border-gray-200 group flex items-center justify-center
                   ${isLocalEditing ? 'cursor-pointer hover:border-brand-cyan hover:shadow-md transition-all' : ''}
                 `}
-                onClick={() => isLocalEditing && fileInputRef.current?.click()}
+                onClick={(e) => {
+                  // Only trigger file upload if clicking the main area, NOT the action buttons, and NOT when link input is open
+                  if (
+                    !isProcessing && 
+                    !showLinkInput &&
+                    isLocalEditing && 
+                    !(e.target as HTMLElement).closest('button') &&
+                    !(e.target as HTMLElement).closest('input')
+                  ) {
+                    fileInputRef.current?.click();
+                  }
+                }}
               >
+                {/* Processing Overlay */}
+                {isProcessing && (
+                  <div className="absolute inset-0 z-20 bg-white/90 flex flex-col items-center justify-center backdrop-blur-sm">
+                    <Loader2 size={48} className="text-brand-cyan animate-spin mb-4" />
+                    <p className="text-brand-navy font-black text-lg tracking-tight">{statusMessage}</p>
+                  </div>
+                )}
+
+                {/* Paste Link Input Overlay */}
+                {showLinkInput && (
+                  <div className="absolute inset-0 z-[60] bg-white flex flex-col items-center justify-center p-8 animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+                    <h3 className="text-brand-navy font-bold text-lg mb-4 flex items-center gap-2">
+                      <Link2 size={20} /> Paste Media Link
+                    </h3>
+                    <p className="text-gray-400 text-xs mb-4 text-center max-w-xs">Supports Images, GIFs, Videos, and Google Drive sharing links.</p>
+                    <input 
+                      autoFocus
+                      type="text" 
+                      className="w-full max-w-md border-2 border-brand-cyan/30 focus:border-brand-cyan rounded-lg p-3 mb-4 text-sm outline-none"
+                      placeholder="https://..."
+                      value={linkInputValue}
+                      onChange={e => setLinkInputValue(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && submitLinkInput()}
+                    />
+                    <div className="flex gap-3">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setShowLinkInput(false); }} 
+                          className="px-6 py-2 text-gray-500 hover:bg-gray-100 rounded-lg text-sm font-bold transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          onClick={submitLinkInput} 
+                          className="px-6 py-2 bg-brand-cyan text-white hover:bg-brand-navy rounded-lg text-sm font-bold transition-colors shadow-md"
+                        >
+                          Save Link
+                        </button>
+                    </div>
+                  </div>
+                )}
+
                 {month.productLaunch.image ? (
-                  <img 
-                    src={month.productLaunch.image} 
-                    alt="Launch Visual" 
-                    className="w-full h-full object-contain max-h-[600px]"
-                  />
+                  renderMedia()
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8 text-center">
-                    <span className="text-6xl mb-4 opacity-20">📷</span>
-                    <p className="text-sm font-medium uppercase tracking-widest">
-                      {isLocalEditing ? 'Click to Upload Image' : 'No Visual Asset'}
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8 text-center pointer-events-none">
+                    <span className="text-6xl mb-4 opacity-20 grayscale">📷</span>
+                    <p className="text-sm font-medium uppercase tracking-widest opacity-50">
+                      {isLocalEditing ? 'Click to Upload or Link' : 'No Visual Asset'}
                     </p>
                   </div>
                 )}
                 
-                {isLocalEditing && (
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="bg-white text-brand-navy px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg">
+                {isLocalEditing && !isProcessing && !showLinkInput && (
+                  <div className="absolute inset-0 bg-brand-navy/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-10 backdrop-blur-[2px]">
+                    <div className="bg-white text-brand-navy px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-xl transform scale-95 group-hover:scale-100 transition-transform">
                       <Upload size={18} />
-                      {month.productLaunch.image ? 'Change Image' : 'Upload Image'}
+                      {month.productLaunch.image ? 'Change Media' : 'Upload Media'}
                     </div>
                   </div>
                 )}
+
+                {/* ACTION BUTTONS - Always visible in edit mode now */}
+                {isLocalEditing && !isProcessing && !showLinkInput && (
+                  <>
+                    {/* Paste Link Button (Top Left) */}
+                    <button 
+                      type="button"
+                      onClick={openLinkInput}
+                      className="absolute top-4 left-4 z-50 p-2.5 bg-white text-brand-cyan rounded-full shadow-lg hover:bg-brand-light hover:scale-105 transition-all border border-brand-cyan/10"
+                      title="Paste URL (Bypass Upload)"
+                    >
+                      <Link2 size={20} />
+                    </button>
+
+                    {/* Remove Media Button (Top Right) */}
+                    {month.productLaunch.image && (
+                      <button 
+                        type="button"
+                        onClick={handleRemoveMedia}
+                        className="absolute top-4 right-4 z-50 p-2.5 bg-white text-red-400 rounded-full shadow-lg hover:bg-red-50 hover:text-red-600 hover:scale-105 transition-all border border-red-100"
+                        title="Remove Media"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    )}
+                  </>
+                )}
+
                 <input 
                   type="file" 
                   ref={fileInputRef} 
                   className="hidden" 
-                  accept="image/*"
-                  onChange={handleImageUpload}
+                  accept="image/*,video/*"
+                  onChange={handleMediaUpload}
                 />
               </div>
             </div>
 
-            {/* Right: Launch Details */}
+            {/* Right: Launch Details - Standard Layout */}
             <div className="space-y-6">
               
               {/* Title & Logo */}
@@ -373,7 +537,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                       onChange={(e) => updateLaunchField('title', e.target.value)}
                       className={`
                         w-full text-3xl font-bold text-brand-navy outline-none bg-transparent placeholder-gray-200 leading-tight
-                        ${isLocalEditing ? 'border-b-2 border-brand-cyan/30 focus:border-brand-cyan pb-2' : ''}
+                        ${isLocalEditing ? 'border-b-2 border-brand-cyan/30 focus:border-brand-cyan pb-2 transition-colors' : ''}
                       `}
                       placeholder={isLocalEditing ? "Enter Launch Title..." : "No Launch Scheduled"}
                     />
@@ -381,18 +545,20 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                  
                  <div 
                    className={`
-                      w-24 h-24 shrink-0 rounded-lg border-2 flex items-center justify-center bg-white relative overflow-hidden group
-                      ${isLocalEditing ? 'border-dashed border-gray-300 hover:border-brand-cyan cursor-pointer' : 'border-transparent'}
+                      w-24 h-24 shrink-0 rounded-lg border-2 flex items-center justify-center bg-white relative overflow-hidden group shadow-sm
+                      ${isLocalEditing ? 'border-dashed border-gray-300 hover:border-brand-cyan cursor-pointer hover:bg-brand-light/10 transition-colors' : 'border-transparent'}
                    `}
-                   onClick={() => isLocalEditing && logoInputRef.current?.click()}
+                   onClick={() => !isProcessing && isLocalEditing && logoInputRef.current?.click()}
                  >
-                    {month.productLaunch.logo ? (
-                       <img src={month.productLaunch.logo} alt="Brand Logo" className="w-full h-full object-contain p-2" />
+                    {isProcessing ? (
+                       <Loader2 size={20} className="text-brand-cyan animate-spin" />
+                    ) : month.productLaunch.logo ? (
+                       <img src={month.productLaunch.logo} alt="Brand Logo" className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform" />
                     ) : (
                        isLocalEditing && (
                          <div className="text-center">
-                            <Upload size={20} className="mx-auto text-gray-300 mb-1 group-hover:text-brand-cyan" />
-                            <span className="text-[10px] text-gray-400 font-bold uppercase block leading-none">Add Logo</span>
+                            <Upload size={20} className="mx-auto text-gray-300 mb-1 group-hover:text-brand-cyan transition-colors" />
+                            <span className="text-[10px] text-gray-400 font-bold uppercase block leading-none group-hover:text-brand-cyan transition-colors">Add Logo</span>
                          </div>
                        )
                     )}
@@ -409,7 +575,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({
               <div className="grid grid-cols-1 gap-6">
                 
                 {/* Objective */}
-                <div className="bg-brand-light/30 p-5 rounded-xl border border-brand-cyan/10">
+                <div className="bg-brand-light/30 p-5 rounded-xl border border-brand-cyan/10 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-brand-cyan/50"></div>
                   <div className="flex items-center gap-2 mb-3 text-brand-navy">
                     <Target size={18} />
                     <h4 className="font-bold text-sm uppercase tracking-wide">Objective</h4>
@@ -418,11 +585,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                     <textarea
                       value={month.productLaunch.objective}
                       onChange={(e) => updateLaunchField('objective', e.target.value)}
-                      className="w-full bg-white border border-brand-cyan/20 rounded-lg p-3 text-brand-navy text-sm focus:ring-2 focus:ring-brand-cyan/30 outline-none resize-none min-h-[100px]"
+                      className="w-full bg-white border border-brand-cyan/20 rounded-lg p-3 text-brand-navy text-sm focus:ring-2 focus:ring-brand-cyan/30 outline-none resize-none min-h-[100px] shadow-sm"
                       placeholder="What is the main goal of this launch?"
                     />
                   ) : (
-                    <p className="text-brand-navy/80 leading-relaxed">
+                    <p className="text-brand-navy/80 leading-relaxed font-medium">
                       {month.productLaunch.objective || 'No objective defined.'}
                     </p>
                   )}
@@ -451,8 +618,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                              <span>{month.productLaunch.performanceSpend || '—'}</span>
                            )}
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                           <div className="bg-brand-cyan h-full rounded-full" style={{ width: '65%' }}></div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden shadow-inner">
+                           <div className="bg-brand-cyan h-full rounded-full shadow-[0_0_10px_rgba(0,175,215,0.4)]" style={{ width: '65%' }}></div>
                         </div>
                      </div>
 
@@ -471,8 +638,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                              <span>{month.productLaunch.brandSpend || '—'}</span>
                            )}
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                           <div className="bg-brand-navy h-full rounded-full" style={{ width: '40%' }}></div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden shadow-inner">
+                           <div className="bg-brand-navy h-full rounded-full shadow-[0_0_10px_rgba(28,79,139,0.4)]" style={{ width: '40%' }}></div>
                         </div>
                      </div>
                   </div>
@@ -494,7 +661,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                   
                   <div className="space-y-2">
                     {(month.productLaunch.resources || []).map((resource) => (
-                      <div key={resource.id} className="flex items-center gap-2">
+                      <div key={resource.id} className="flex items-center gap-2 group">
                         {isLocalEditing ? (
                           <div className="flex-1 grid grid-cols-2 gap-2">
                              <input 
@@ -517,7 +684,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                             href={resource.url} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="flex-1 flex items-center gap-2 text-sm font-bold text-brand-cyan hover:underline hover:text-brand-navy transition-colors bg-white border border-gray-200 p-2 rounded-lg"
+                            className="flex-1 flex items-center gap-2 text-sm font-bold text-brand-cyan hover:underline hover:text-brand-navy transition-colors bg-white border border-gray-200 p-2 rounded-lg shadow-sm hover:shadow hover:border-brand-cyan/30"
                           >
                             <ExternalLink size={14} />
                             {resource.label}
@@ -526,7 +693,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                         {isLocalEditing && (
                           <button 
                             onClick={() => removeResource(resource.id)}
-                            className="text-gray-300 hover:text-red-500 p-1 transition-colors"
+                            className="text-gray-300 hover:text-red-500 p-1 transition-colors opacity-50 group-hover:opacity-100"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -534,7 +701,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                       </div>
                     ))}
                     {(!month.productLaunch.resources || month.productLaunch.resources.length === 0) && !isLocalEditing && (
-                      <p className="text-gray-400 text-sm italic">No resources attached.</p>
+                      <p className="text-gray-400 text-sm italic pl-2">No resources attached.</p>
                     )}
                   </div>
                 </div>
@@ -546,16 +713,16 @@ export const DetailModal: React.FC<DetailModalProps> = ({
           <hr className="border-gray-100 my-8" />
 
           {/* Additional Campaigns */}
-          <div>
+          <div className="">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-brand-navy flex items-center gap-2">
                 Additional Campaign Activities
-                <span className="text-sm font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{(month.campaigns || []).length}</span>
+                <span className="text-sm font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">{(month.campaigns || []).length}</span>
               </h3>
               {isLocalEditing && (
                 <button 
                   onClick={addCampaign}
-                  className="text-sm bg-brand-cyan/10 text-brand-cyan px-3 py-1.5 rounded-lg hover:bg-brand-cyan hover:text-white transition-all font-bold flex items-center gap-1"
+                  className="text-sm bg-brand-cyan/10 text-brand-cyan px-3 py-1.5 rounded-lg hover:bg-brand-cyan hover:text-white transition-all font-bold flex items-center gap-1 shadow-sm"
                 >
                   <Plus size={16} /> Add Activity
                 </button>
@@ -564,7 +731,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
             {(month.campaigns && month.campaigns.length > 0) ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {month.campaigns.map((campaign) => (
-                  <div key={campaign.id} className="bg-gray-50 p-3 rounded-lg border border-gray-100 flex items-center justify-between group">
+                  <div key={campaign.id} className="bg-gray-50 p-3 rounded-lg border border-gray-100 flex items-center justify-between group hover:bg-white hover:shadow-sm transition-all hover:border-brand-cyan/20">
                     {isLocalEditing ? (
                       <input
                         type="text"
@@ -614,28 +781,45 @@ export const DetailModal: React.FC<DetailModalProps> = ({
               </button>
            </div>
            
-           {/* Identity Section */}
+           {/* Identity Section (GUEST MODE) */}
            <div className="px-4 py-3 bg-brand-light/20 border-b border-gray-100 shrink-0">
-             {currentUser ? (
-               <div className="flex items-center gap-2">
-                   {currentUser.photoURL ? (
-                      <img src={currentUser.photoURL} className="w-6 h-6 rounded-full" alt="User" />
-                   ) : (
-                      <div className="w-6 h-6 bg-brand-navy text-white rounded-full flex items-center justify-center text-[10px] font-bold">
-                        {currentUser.displayName?.charAt(0)}
+             {userName ? (
+               <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-brand-navy text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">
+                        {userName.charAt(0)}
                       </div>
-                   )}
-                   <span className="text-xs font-bold text-gray-700">
-                     Commenting as {currentUser.displayName}
-                   </span>
+                      <span className="text-xs font-bold text-gray-700 truncate max-w-[150px]">
+                        {userName}
+                      </span>
+                   </div>
+                   <button 
+                     onClick={() => setUserName('')}
+                     className="text-[10px] text-gray-400 hover:text-brand-cyan underline"
+                   >
+                     Change
+                   </button>
                </div>
              ) : (
-               <button 
-                 onClick={onSignIn}
-                 className="flex items-center gap-2 text-xs font-bold text-brand-cyan hover:underline w-full justify-center py-1"
-               >
-                 <LogIn size={14} /> Sign in to comment
-               </button>
+               <div className="space-y-2">
+                 <p className="text-xs font-bold text-brand-navy">What is your name?</p>
+                 <div className="flex gap-2">
+                   <input 
+                     type="text" 
+                     value={tempName}
+                     onChange={(e) => setTempName(e.target.value)}
+                     className="flex-1 text-xs border border-gray-300 rounded px-2 py-1 focus:border-brand-cyan outline-none"
+                     placeholder="Enter name..."
+                   />
+                   <button 
+                     onClick={saveName}
+                     disabled={!tempName.trim()}
+                     className="bg-brand-cyan text-white text-xs font-bold px-3 py-1 rounded disabled:opacity-50 hover:bg-brand-navy transition-colors"
+                   >
+                     Save
+                   </button>
+                 </div>
+               </div>
              )}
            </div>
 
@@ -725,15 +909,13 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                              </button>
                            )}
                            
-                           {/* Allow delete if current user is author */}
-                           {currentUser && currentUser.displayName === comment.author && (
-                             <button 
-                                onClick={() => deleteComment(comment.id)}
-                                className="text-[10px] text-gray-300 hover:text-red-400 ml-auto"
-                             >
-                                Delete
-                             </button>
-                           )}
+                           {/* Allow delete for everyone in open mode */}
+                           <button 
+                              onClick={() => deleteComment(comment.id)}
+                              className="text-[10px] text-gray-300 hover:text-red-400 ml-auto"
+                           >
+                              Delete
+                           </button>
                          </div>
                       )}
                    </div>
@@ -743,7 +925,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
 
            {/* Input Area */}
            <div className="p-4 bg-white border-t border-gray-200 shrink-0">
-             {currentUser ? (
+             {userName ? (
                <div className="relative">
                   <textarea
                     value={newComment}
@@ -755,19 +937,19 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                       }
                     }}
                     placeholder="Type a comment..."
-                    className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 pr-10 text-sm focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan outline-none resize-none h-20"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 pr-10 text-sm focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan outline-none resize-none h-20 shadow-inner"
                   />
                   <button 
                     onClick={addTopLevelComment}
                     disabled={!newComment.trim()}
-                    className="absolute bottom-2 right-2 p-1.5 bg-brand-navy text-white rounded-md disabled:opacity-30 disabled:cursor-not-allowed hover:bg-brand-cyan transition-colors"
+                    className="absolute bottom-2 right-2 p-1.5 bg-brand-navy text-white rounded-md disabled:opacity-30 disabled:cursor-not-allowed hover:bg-brand-cyan transition-colors shadow-sm"
                   >
                     <Send size={16} />
                   </button>
                </div>
              ) : (
                <div className="text-center p-4 bg-gray-50 rounded border border-dashed border-gray-200">
-                  <p className="text-xs text-gray-500">Sign in to join the conversation.</p>
+                  <p className="text-xs text-gray-500">Please enter your name above to comment.</p>
                </div>
              )}
            </div>

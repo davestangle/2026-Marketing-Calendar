@@ -20,6 +20,7 @@ export const INITIAL_DATA: MonthData[] = [
   {
     id: 'jan-2026',
     name: 'January',
+    headerLogo: '',
     quarter: 'FY26 - Q4',
     year: currentYear,
     productLaunch: emptyLaunch(),
@@ -29,6 +30,7 @@ export const INITIAL_DATA: MonthData[] = [
   {
     id: 'feb-2026',
     name: 'February',
+    headerLogo: '',
     quarter: 'FY26 - Q4',
     year: currentYear,
     productLaunch: emptyLaunch(),
@@ -38,6 +40,7 @@ export const INITIAL_DATA: MonthData[] = [
   {
     id: 'mar-2026',
     name: 'March',
+    headerLogo: '',
     quarter: 'FY26 - Q4',
     year: currentYear,
     productLaunch: {
@@ -60,6 +63,7 @@ export const INITIAL_DATA: MonthData[] = [
   {
     id: 'apr-2026',
     name: 'April',
+    headerLogo: '',
     quarter: 'FY27 - Q1',
     year: currentYear,
     productLaunch: emptyLaunch(),
@@ -69,6 +73,7 @@ export const INITIAL_DATA: MonthData[] = [
   {
     id: 'may-2026',
     name: 'May',
+    headerLogo: '',
     quarter: 'FY27 - Q1',
     year: currentYear,
     productLaunch: {
@@ -87,6 +92,7 @@ export const INITIAL_DATA: MonthData[] = [
   {
     id: 'jun-2026',
     name: 'June',
+    headerLogo: '',
     quarter: 'FY27 - Q1',
     year: currentYear,
     productLaunch: {
@@ -106,6 +112,7 @@ export const INITIAL_DATA: MonthData[] = [
   {
     id: 'jul-2026',
     name: 'July',
+    headerLogo: '',
     quarter: 'FY27 - Q2',
     year: currentYear,
     productLaunch: emptyLaunch(),
@@ -115,6 +122,7 @@ export const INITIAL_DATA: MonthData[] = [
   {
     id: 'aug-2026',
     name: 'August',
+    headerLogo: '',
     quarter: 'FY27 - Q2',
     year: currentYear,
     productLaunch: emptyLaunch(),
@@ -124,6 +132,7 @@ export const INITIAL_DATA: MonthData[] = [
   {
     id: 'sep-2026',
     name: 'September',
+    headerLogo: '',
     quarter: 'FY27 - Q2',
     year: currentYear,
     productLaunch: {
@@ -143,6 +152,7 @@ export const INITIAL_DATA: MonthData[] = [
   {
     id: 'oct-2026',
     name: 'October',
+    headerLogo: '',
     quarter: 'FY27 - Q3',
     year: currentYear,
     productLaunch: {
@@ -161,6 +171,7 @@ export const INITIAL_DATA: MonthData[] = [
   {
     id: 'nov-2026',
     name: 'November',
+    headerLogo: '',
     quarter: 'FY27 - Q3',
     year: currentYear,
     productLaunch: {
@@ -179,6 +190,7 @@ export const INITIAL_DATA: MonthData[] = [
   {
     id: 'dec-2026',
     name: 'December',
+    headerLogo: '',
     quarter: 'FY27 - Q3',
     year: currentYear,
     productLaunch: emptyLaunch(),

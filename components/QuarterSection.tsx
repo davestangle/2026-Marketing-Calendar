@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { MonthData, Quarter } from '../types';
 import { MonthCard } from './MonthCard';
@@ -8,6 +9,7 @@ interface QuarterSectionProps {
   isEditing: boolean;
   onUpdateMonth: (updatedMonth: MonthData) => void;
   onSelectMonth: (month: MonthData) => void;
+  onProcessMedia: (file: File) => Promise<string>;
 }
 
 export const QuarterSection: React.FC<QuarterSectionProps> = ({ 
@@ -15,7 +17,8 @@ export const QuarterSection: React.FC<QuarterSectionProps> = ({
   months, 
   isEditing, 
   onUpdateMonth,
-  onSelectMonth
+  onSelectMonth,
+  onProcessMedia
 }) => {
   return (
     <section className="w-full mb-12 last:mb-0">
@@ -32,6 +35,7 @@ export const QuarterSection: React.FC<QuarterSectionProps> = ({
             isEditing={isEditing}
             onUpdate={onUpdateMonth}
             onClick={() => onSelectMonth(month)}
+            onProcessMedia={onProcessMedia}
           />
         ))}
       </div>
