@@ -289,7 +289,7 @@ function App() {
       )}
       
       <footer className="text-center text-white/40 text-sm pb-8 font-medium">
-        MARKETER2026 // COLLABORATIVE DASHBOARD
+        2026 CALENDAR // LIVE TEAM DASHBOARD
       </footer>
     </div>
   );
