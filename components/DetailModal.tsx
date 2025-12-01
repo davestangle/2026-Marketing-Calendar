@@ -14,6 +14,44 @@ interface DetailModalProps {
   onSignIn: () => void;
 }
 
+// Helper to compress images (duplicated here for component portability)
+const resizeImage = (file: File, maxWidth = 1200): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxWidth) {
+            width *= maxWidth / height;
+            height = maxWidth;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        // Compress to JPEG at 80% quality
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
+
 export const DetailModal: React.FC<DetailModalProps> = ({ 
   month, 
   isOpen, 
@@ -48,40 +86,33 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   if (!isOpen || !month) return null;
 
   // --- Image & Data Handlers ---
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Limit file size to 700KB to fit in Firestore 1MB doc limit safely with other data
-      if (file.size > 700 * 1024) {
-        alert("Image too large. Please select an image under 700KB.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
+      try {
+        const base64 = await resizeImage(file, 1200);
         onUpdate({
           ...month,
-          productLaunch: { ...month.productLaunch, image: reader.result as string }
+          productLaunch: { ...month.productLaunch, image: base64 }
         });
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        alert("Failed to process image. Try a different file.");
+      }
     }
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 200 * 1024) {
-         alert("Logo too large. Please select a file under 200KB.");
-         return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
+      try {
+        const base64 = await resizeImage(file, 600); // Smaller max width for logos
         onUpdate({
           ...month,
-          productLaunch: { ...month.productLaunch, logo: reader.result as string }
+          productLaunch: { ...month.productLaunch, logo: base64 }
         });
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        alert("Failed to process logo.");
+      }
     }
   };
 

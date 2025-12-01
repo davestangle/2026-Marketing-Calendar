@@ -11,6 +11,43 @@ import { db, auth } from './firebase';
 import { collection, onSnapshot, doc, setDoc, writeBatch, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, User, signInWithPopup, signOut, GoogleAuthProvider } from 'firebase/auth';
 
+// Helper to compress images before upload
+const resizeImage = (file: File, maxWidth = 1200): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxWidth) {
+            width *= maxWidth / height;
+            height = maxWidth;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        // Compress to JPEG at 80% quality
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 function App() {
   const [data, setData] = useState<MonthData[]>([]);
   const [user, setUser] = useState<User | null>(null);
@@ -136,23 +173,15 @@ function App() {
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Check size (Max 700KB for Firestore safety)
-      if (file.size > 700 * 1024) {
-        alert("File too large. Please upload a logo smaller than 700KB.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result as string;
+      try {
+        // Compress image before upload (max width 800px for logo is plenty)
+        const base64 = await resizeImage(file, 800);
         setLogo(base64);
-        try {
-          await setDoc(doc(db, 'settings', 'global'), { logo: base64 }, { merge: true });
-        } catch (e) {
-          console.error("Upload error", e);
-          alert("Failed to upload logo to cloud.");
-        }
-      };
-      reader.readAsDataURL(file);
+        await setDoc(doc(db, 'settings', 'global'), { logo: base64 }, { merge: true });
+      } catch (e) {
+        console.error("Upload error", e);
+        alert("Failed to process image.");
+      }
     }
   };
 
