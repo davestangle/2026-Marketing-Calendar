@@ -141,31 +141,36 @@ function App() {
       } else {
         let fetchedMonths = snapshot.docs.map(doc => doc.data() as MonthData);
         
-        // --- AUTO-MIGRATION LOGIC ---
-        // This fixes old data that might be stuck in your database
+        // --- AGGRESSIVE MIGRATION LOGIC ---
+        // This ensures old database values are overwritten with new requirements
         const migratedMonths = fetchedMonths.map(m => {
           let changed = false;
-          // 1. Rename Sections
-          if (m.productLaunch.section1Title === 'Key Results') {
+          
+          // 1. Rename Section 1
+          if (m.productLaunch.section1Title === 'Key Results' || !m.productLaunch.section1Title) {
             m.productLaunch.section1Title = 'WHATS ON THE TABLE';
             changed = true;
           }
-          if (m.productLaunch.section2Title === 'Strategic Pillars') {
+          
+          // 2. Rename Section 2
+          if (m.productLaunch.section2Title === 'Strategic Pillars' || !m.productLaunch.section2Title) {
             m.productLaunch.section2Title = 'PRE CAMPAIGN TIMELINE';
             changed = true;
           }
-          // 2. Fix Budgets (if using old defaults)
-          if (!m.productLaunch.performanceSpend || m.productLaunch.performanceSpend === '$100,000' || m.productLaunch.performanceSpend === '$120,000') {
-             // Only override if it looks like an old default
+          
+          // 3. Fix Budgets (Overwrite old defaults)
+          // If it matches old defaults OR is missing, set new defaults.
+          // Note: This might overwrite manual edits if they exactly matched old defaults, but it's necessary to fix the view.
+          if (!m.productLaunch.performanceSpend || m.productLaunch.performanceSpend === '$120,000' || m.productLaunch.performanceSpend === '$100,000') {
              m.productLaunch.performanceSpend = '$500,000';
              changed = true;
           }
-          if (!m.productLaunch.brandSpend) {
+          if (!m.productLaunch.brandSpend || m.productLaunch.brandSpend === '$35,000') {
              m.productLaunch.brandSpend = '$100,000';
              changed = true;
           }
 
-          // If we fixed something, save it back to DB silently
+          // Save back to DB if needed
           if (changed) {
              setDoc(doc(db, 'months', m.id), m, { merge: true });
           }

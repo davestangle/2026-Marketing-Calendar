@@ -1,7 +1,6 @@
-
 import React, { useRef } from 'react';
 import { MonthData } from '../types';
-import { MessageSquare, Upload, ImageIcon } from 'lucide-react';
+import { MessageSquare, Upload, Trash2 } from 'lucide-react';
 
 interface MonthCardProps {
   month: MonthData;
@@ -13,6 +12,7 @@ interface MonthCardProps {
 
 export const MonthCard: React.FC<MonthCardProps> = ({ month, isEditing, onUpdate, onClick, onProcessMedia }) => {
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const handleLaunchTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onUpdate({
@@ -24,6 +24,8 @@ export const MonthCard: React.FC<MonthCardProps> = ({ month, isEditing, onUpdate
   const handleHeaderLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation(); // Prevent card click
     const file = e.target.files?.[0];
+    e.target.value = '';
+    
     if (file) {
       try {
         const result = await onProcessMedia(file);
@@ -31,19 +33,50 @@ export const MonthCard: React.FC<MonthCardProps> = ({ month, isEditing, onUpdate
           ...month,
           headerLogo: result
         });
-      } catch (err) {
-        alert("Failed to process logo.");
+      } catch (err: any) {
+        alert("Failed to upload: " + err.message);
       }
     }
   };
 
+  const handleRemoveHeaderLogo = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onUpdate({
+      ...month,
+      headerLogo: ''
+    });
+  };
+
+  const handleMouseEnter = () => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(e => {
+        console.log("Hover play prevented", e);
+      });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0; 
+    }
+  };
+
   const hasLaunch = !!month.productLaunch.title;
-  // Count active (unresolved) comment threads
   const activeCommentCount = month.comments ? month.comments.filter(c => !c.resolved).length : 0;
+
+  // Check if the logo is a video based on URL or Cloudinary format
+  const src = month.headerLogo || "";
+  const isVideoLogo = src.startsWith('data:video') || 
+                      src.includes('/video/upload') || 
+                      /\.(mp4|webm|mov)($|\?)/i.test(src);
 
   return (
     <div 
       onClick={onClick}
+      onMouseEnter={handleMouseEnter} 
+      onMouseLeave={handleMouseLeave} 
       className={`
         relative flex flex-col h-full bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.05)]
         transition-all duration-300 border-t-4
@@ -51,7 +84,7 @@ export const MonthCard: React.FC<MonthCardProps> = ({ month, isEditing, onUpdate
         ${!isEditing ? 'hover:-translate-y-2 hover:shadow-[0_12px_40px_rgba(0,175,215,0.2)] cursor-pointer' : 'cursor-default'}
       `}
     >
-      {/* Header - Split 50/50 and Taller for Square Logos */}
+      {/* Header */}
       <div className="h-32 border-b border-gray-100 flex items-stretch bg-gray-50 rounded-t-xl overflow-hidden">
         
         {/* Left: Name & Comment Count */}
@@ -63,7 +96,6 @@ export const MonthCard: React.FC<MonthCardProps> = ({ month, isEditing, onUpdate
               <span className="text-xs font-bold">{activeCommentCount}</span>
             </div>
           )}
-          {/* Subtle shine effect on hover */}
           <div className="absolute inset-0 bg-gradient-to-tr from-white/0 to-white/60 opacity-0 hover:opacity-100 transition-opacity pointer-events-none"></div>
         </div>
 
@@ -74,12 +106,23 @@ export const MonthCard: React.FC<MonthCardProps> = ({ month, isEditing, onUpdate
              if (isEditing) logoInputRef.current?.click();
           }}
           className={`
-            w-1/2 relative flex items-center justify-center bg-white p-2
+            w-1/2 relative flex items-center justify-center bg-white p-2 overflow-hidden
             ${isEditing ? 'hover:bg-brand-light/30 cursor-pointer group' : ''}
           `}
         >
           {month.headerLogo ? (
-            <img src={month.headerLogo} alt={`${month.name} Logo`} className="w-full h-full object-contain" />
+            isVideoLogo ? (
+              <video 
+                ref={videoRef}
+                src={month.headerLogo} 
+                muted 
+                loop 
+                playsInline
+                className="w-full h-full object-contain pointer-events-none" 
+              />
+            ) : (
+              <img src={month.headerLogo} alt={`${month.name} Logo`} className="w-full h-full object-contain pointer-events-none" />
+            )
           ) : (
             isEditing && (
               <div className="text-center group-hover:scale-105 transition-transform">
@@ -96,11 +139,22 @@ export const MonthCard: React.FC<MonthCardProps> = ({ month, isEditing, onUpdate
             </div>
           )}
 
+          {/* TRASH BUTTON (New) */}
+          {isEditing && month.headerLogo && (
+            <button 
+              onClick={handleRemoveHeaderLogo}
+              className="absolute top-2 right-2 bg-white text-red-500 p-1.5 rounded-full shadow-md hover:bg-red-50 transition-colors z-20"
+              title="Delete Logo"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+
           <input 
             type="file"
             ref={logoInputRef}
             className="hidden"
-            accept="image/*"
+            accept="image/*,video/*"
             onChange={handleHeaderLogoUpload}
           />
         </div>
