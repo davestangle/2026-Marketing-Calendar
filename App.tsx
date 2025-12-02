@@ -56,21 +56,14 @@ const processMediaFile = async (file: File): Promise<string> => {
     const cloudName = HARDCODED_CLOUD_NAME;
     const uploadPreset = HARDCODED_UPLOAD_PRESET;
 
-    if (!file || file.size === 0) {
-        throw new Error("File is empty or invalid.");
-    }
-
     console.log(`Processing: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
 
     // 1. CHECK SIZE LIMITS
     const isGif = file.type.includes('gif');
-    // 9.5MB safety limit for GIFs (Cloudinary Free tier is 10MB for images)
-    if (isGif && file.size > 9900000) { 
-        throw new Error(`Your GIF is ${ (file.size / 1024 / 1024).toFixed(1) }MB. Cloudinary limits Images/GIFs to 10MB. \n\nPlease convert this file to .MP4 (Video) which allows up to 100MB.`);
+    if (isGif && file.size > 9500000) { 
+        throw new Error("GIF is too large (Max 10MB). Please convert it to an MP4 video (Max 100MB) and upload that instead.");
     }
 
-    // 2. DETERMINE ENDPOINT
-    // Videos go to 'video' endpoint (100MB limit). Images/GIFs go to 'image' (10MB limit).
     let resourceType = 'image'; 
     if (file.type.startsWith('video/')) {
         resourceType = 'video';
@@ -94,7 +87,7 @@ const processMediaFile = async (file: File): Promise<string> => {
           if (msg.includes('File size too large')) {
              msg = `File too large. Images/GIFs max 10MB. Videos max 100MB.`;
           }
-          throw new Error(`Cloudinary Error: ${msg}`);
+          throw new Error(msg);
       }
 
       console.log("Upload Successful:", data.secure_url);
@@ -146,14 +139,46 @@ function App() {
       if (snapshot.empty && !isLoading && !error) {
         initializeDatabase();
       } else {
-        const fetchedMonths = snapshot.docs.map(doc => doc.data() as MonthData);
+        let fetchedMonths = snapshot.docs.map(doc => doc.data() as MonthData);
+        
+        // --- AUTO-MIGRATION LOGIC ---
+        // This fixes old data that might be stuck in your database
+        const migratedMonths = fetchedMonths.map(m => {
+          let changed = false;
+          // 1. Rename Sections
+          if (m.productLaunch.section1Title === 'Key Results') {
+            m.productLaunch.section1Title = 'WHATS ON THE TABLE';
+            changed = true;
+          }
+          if (m.productLaunch.section2Title === 'Strategic Pillars') {
+            m.productLaunch.section2Title = 'PRE CAMPAIGN TIMELINE';
+            changed = true;
+          }
+          // 2. Fix Budgets (if using old defaults)
+          if (!m.productLaunch.performanceSpend || m.productLaunch.performanceSpend === '$100,000' || m.productLaunch.performanceSpend === '$120,000') {
+             // Only override if it looks like an old default
+             m.productLaunch.performanceSpend = '$500,000';
+             changed = true;
+          }
+          if (!m.productLaunch.brandSpend) {
+             m.productLaunch.brandSpend = '$100,000';
+             changed = true;
+          }
+
+          // If we fixed something, save it back to DB silently
+          if (changed) {
+             setDoc(doc(db, 'months', m.id), m, { merge: true });
+          }
+          return m;
+        });
+
         const sorted = INITIAL_DATA.map(init => 
-          fetchedMonths.find(m => m.id === init.id) || init
+          migratedMonths.find(m => m.id === init.id) || init
         );
         setData(sorted);
         
         if (selectedMonth) {
-          const currentVersion = fetchedMonths.find(m => m.id === selectedMonth.id);
+          const currentVersion = migratedMonths.find(m => m.id === selectedMonth.id);
           if (currentVersion) setSelectedMonth(currentVersion);
         }
       }
