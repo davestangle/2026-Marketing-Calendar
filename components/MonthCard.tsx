@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { MonthData } from '../types';
 import { MessageSquare, Upload, Trash2 } from 'lucide-react';
@@ -12,7 +13,6 @@ interface MonthCardProps {
 
 export const MonthCard: React.FC<MonthCardProps> = ({ month, isEditing, onUpdate, onClick, onProcessMedia }) => {
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   const handleLaunchTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onUpdate({
@@ -24,7 +24,7 @@ export const MonthCard: React.FC<MonthCardProps> = ({ month, isEditing, onUpdate
   const handleHeaderLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation(); // Prevent card click
     const file = e.target.files?.[0];
-    e.target.value = '';
+    if (file && e.target) e.target.value = '';
     
     if (file) {
       try {
@@ -47,22 +47,6 @@ export const MonthCard: React.FC<MonthCardProps> = ({ month, isEditing, onUpdate
     });
   };
 
-  const handleMouseEnter = () => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0;
-      videoRef.current.play().catch(e => {
-        console.log("Hover play prevented", e);
-      });
-    }
-  };
-
-  const handleMouseLeave = () => {
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0; 
-    }
-  };
-
   const hasLaunch = !!month.productLaunch.title;
   const activeCommentCount = month.comments ? month.comments.filter(c => !c.resolved).length : 0;
 
@@ -75,8 +59,6 @@ export const MonthCard: React.FC<MonthCardProps> = ({ month, isEditing, onUpdate
   return (
     <div 
       onClick={onClick}
-      onMouseEnter={handleMouseEnter} 
-      onMouseLeave={handleMouseLeave} 
       className={`
         relative flex flex-col h-full bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.05)]
         transition-all duration-300 border-t-4
@@ -113,11 +95,11 @@ export const MonthCard: React.FC<MonthCardProps> = ({ month, isEditing, onUpdate
           {month.headerLogo ? (
             isVideoLogo ? (
               <video 
-                ref={videoRef}
                 src={month.headerLogo} 
                 muted 
                 loop 
                 playsInline
+                autoPlay
                 className="w-full h-full object-contain pointer-events-none" 
               />
             ) : (
@@ -139,7 +121,7 @@ export const MonthCard: React.FC<MonthCardProps> = ({ month, isEditing, onUpdate
             </div>
           )}
 
-          {/* TRASH BUTTON (New) */}
+          {/* TRASH BUTTON */}
           {isEditing && month.headerLogo && (
             <button 
               onClick={handleRemoveHeaderLogo}
