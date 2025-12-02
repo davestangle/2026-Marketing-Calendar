@@ -31,6 +31,14 @@ export interface LaunchDetails {
   performanceSpend: string;
   brandSpend: string;
   resources: LinkItem[];
+  
+  // NEW CUSTOM FIELDS
+  launchDate?: string; // New field
+  endDate?: string;    // New field
+  section1Title?: string;
+  section1Text?: string;
+  section2Title?: string;
+  section2Text?: string;
 }
 
 export interface MonthData {

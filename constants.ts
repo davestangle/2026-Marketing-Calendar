@@ -12,7 +12,13 @@ const emptyLaunch = () => ({
   performanceSpend: '',
   brandSpend: '',
   resources: [],
-  image: ''
+  image: '',
+  launchDate: '',
+  endDate: '',
+  section1Title: 'Key Results',
+  section1Text: '',
+  section2Title: 'Strategic Pillars',
+  section2Text: ''
 });
 
 export const INITIAL_DATA: MonthData[] = [
@@ -45,7 +51,7 @@ export const INITIAL_DATA: MonthData[] = [
     year: currentYear,
     productLaunch: {
       title: 'Guy Fieri / Flavortown',
-      logo: '', // User can upload
+      logo: '', 
       objective: 'Launch partnership with high-heat influencer mailers.',
       budget: '$120k',
       performanceSpend: '$85,000',
@@ -54,7 +60,13 @@ export const INITIAL_DATA: MonthData[] = [
         { id: 'r1', label: 'Partnership Deck', url: '#' },
         { id: 'r2', label: 'Asset Folder', url: '#' }
       ],
-      image: 'https://picsum.photos/800/600?random=2'
+      image: 'https://picsum.photos/800/600?random=2',
+      launchDate: 'March 10, 2026',
+      endDate: 'April 5, 2026',
+      section1Title: 'Key Results',
+      section1Text: 'Targeting 50M impressions across social channels. Retail placement in 1,200 stores.',
+      section2Title: 'Channel Strategy',
+      section2Text: 'Focus on TikTok and Instagram Reels for viral food moments.'
     },
     campaigns: [],
     comments: []
@@ -84,7 +96,13 @@ export const INITIAL_DATA: MonthData[] = [
       performanceSpend: '$120,000',
       brandSpend: '$80,000',
       resources: [],
-      image: 'https://picsum.photos/800/600?random=4'
+      image: 'https://picsum.photos/800/600?random=4',
+      launchDate: '',
+      endDate: '',
+      section1Title: 'Key Results',
+      section1Text: '',
+      section2Title: 'Strategic Pillars',
+      section2Text: ''
     },
     campaigns: [],
     comments: []
@@ -103,7 +121,13 @@ export const INITIAL_DATA: MonthData[] = [
       performanceSpend: '$60,000',
       brandSpend: '$25,000',
       resources: [],
-      image: 'https://picsum.photos/800/600?random=12'
+      image: 'https://picsum.photos/800/600?random=12',
+      launchDate: '',
+      endDate: '',
+      section1Title: 'Key Results',
+      section1Text: '',
+      section2Title: 'Strategic Pillars',
+      section2Text: ''
     },
     campaigns: [],
     comments: []
@@ -143,7 +167,13 @@ export const INITIAL_DATA: MonthData[] = [
       performanceSpend: '$100,000',
       brandSpend: '$50,000',
       resources: [],
-      image: 'https://picsum.photos/800/600?random=6'
+      image: 'https://picsum.photos/800/600?random=6',
+      launchDate: '',
+      endDate: '',
+      section1Title: 'Key Results',
+      section1Text: '',
+      section2Title: 'Strategic Pillars',
+      section2Text: ''
     },
     campaigns: [],
     comments: []
@@ -163,7 +193,13 @@ export const INITIAL_DATA: MonthData[] = [
       performanceSpend: '$110,000',
       brandSpend: '$70,000',
       resources: [],
-      image: 'https://picsum.photos/800/600?random=7'
+      image: 'https://picsum.photos/800/600?random=7',
+      launchDate: '',
+      endDate: '',
+      section1Title: 'Key Results',
+      section1Text: '',
+      section2Title: 'Strategic Pillars',
+      section2Text: ''
     },
     campaigns: [],
     comments: []
@@ -182,7 +218,13 @@ export const INITIAL_DATA: MonthData[] = [
       performanceSpend: '$70,000',
       brandSpend: '$40,000',
       resources: [],
-      image: 'https://picsum.photos/800/600?random=9'
+      image: 'https://picsum.photos/800/600?random=9',
+      launchDate: '',
+      endDate: '',
+      section1Title: 'Key Results',
+      section1Text: '',
+      section2Title: 'Strategic Pillars',
+      section2Text: ''
     },
     campaigns: [],
     comments: []
